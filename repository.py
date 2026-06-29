@@ -1,12 +1,18 @@
 import subprocess
 from icmplib import ping
 import time
+import queue
+from dataclasses import dataclass
 
 _CANARY_DEAD = '"17"=inactive'
 _CANARY_ALIVE = '"17"=active'
 
 _PING_TIMEOUT = 0.6
+_DELAY = 0.1
 _SWITCH_IPS = [
+    "172.16.38.71",
+]
+_SWITCH_IPS_REAL = [
     "172.16.40.101",
     "172.16.40.102",
     "172.16.40.103",
@@ -14,7 +20,17 @@ _SWITCH_IPS = [
     "172.16.40.105",
 ]
 
-DELAY = 0.1
+@dataclass
+class Inputs:
+    canary_healthy: bool
+    swtiches_healthy: bool
+
+@dataclass
+class State:
+    name: str
+    suspend_sent: bool = False
+    same_input_ticks: int = 0
+
 
 def _read_signal_canary():
 
@@ -56,26 +72,62 @@ def _read_signal_ping():
             return True
     return False
 
-def poller_switches(queue):
+def poller_switches_deprecated(injected_queue):
 
     last_state = None
-
+    
     while True:
 
+        signal_to_emit = None
         current_readings = _read_signal_ping()
+
         if current_readings != last_state:
             last_state = current_readings
+            signal_to_emit = current_readings
 
-            try:
 
-                queue.put_nowait(current_readings)      # Replace if full
-            except queue.Full:
-                queue.get_nowait()
-                queue.put_nowait(current_readings)
+        try:
+            injected_queue.put_nowait(signal_to_emit)      # Replace if full
+        except queue.Full:
+            injected_queue.get_nowait()
+            injected_queue.put_nowait(signal_to_emit)
 
-        time.sleep(DELAY)
+        time.sleep(_DELAY)
 
-def poller_canary_debounced(queue):
+def poller_switches(injected_queue):
+
+    last_emitted = None
+    last_bool_emitted = None
+    
+    while True:
+
+        signal_to_emit = None
+        current_readings = _read_signal_ping()
+
+        if current_readings != last_bool_emitted:
+            signal_to_emit = current_readings
+
+
+        try:
+            injected_queue.put_nowait(signal_to_emit)
+
+            last_emitted = signal_to_emit
+            if signal_to_emit is not None:
+                last_bool_emitted = signal_to_emit
+        except queue.Full:
+
+            if signal_to_emit is not None:
+                if signal_to_emit != last_bool_emitted:
+                    injected_queue.get_nowait()
+                    injected_queue.put_nowait(signal_to_emit)
+
+                    last_emitted = signal_to_emit
+                    if signal_to_emit is not None:
+                        last_bool_emitted = signal_to_emit
+
+        time.sleep(_DELAY)
+
+def poller_canary_debounced_deprecated(injected_queue):
 
     stable_value = None
     next_probable_state = None
@@ -101,9 +153,164 @@ def poller_canary_debounced(queue):
             consequtive_opposite_values_counter = 0
 
             try:
-                queue.put_nowait(stable_value)      # Replace if full
+                injected_queue.put_nowait(stable_value)      # Replace if full
             except queue.Full:
-                queue.get_nowait()
-                queue.put_nowait(stable_value)
+                injected_queue.get_nowait()
+                injected_queue.put_nowait(stable_value)
 
-        time.sleep(DELAY)
+        time.sleep(_DELAY)
+
+def poller_canary_debounced_deprecated2(injected_queue):
+
+    stable_value = None
+    next_probable_state = None
+
+    TRIGGER_CYCLES_COUNT = 30
+    consequtive_opposite_values_counter = 0
+
+    while True:
+
+        # 1 collect proof 
+        canary_current_status = _read_signal_canary()
+        if stable_value != canary_current_status:
+            consequtive_opposite_values_counter += 1
+            next_probable_state = canary_current_status
+        else:
+            consequtive_opposite_values_counter = 0
+            next_probable_state = None
+
+        # 2 decide what to do with collected
+        signal_to_emit = None
+        if consequtive_opposite_values_counter >= (TRIGGER_CYCLES_COUNT):           
+            stable_value = next_probable_state
+            signal_to_emit = next_probable_state
+            next_probable_state = None
+            consequtive_opposite_values_counter = 0
+
+        # 999 emit at ANY cause
+        try:
+            injected_queue.put_nowait(signal_to_emit)      # Replace if full
+        except queue.Full:
+            injected_queue.get_nowait()
+            injected_queue.put_nowait(signal_to_emit)
+
+        time.sleep(_DELAY)
+
+def poller_canary_debounced_deprecated3(injected_queue):
+
+    last_emitted = None
+    stable_value = None
+    next_probable_state = None
+
+    TRIGGER_CYCLES_COUNT = 30
+    consequtive_opposite_values_counter = 0
+
+    while True:
+
+        # 1 collect proof 
+        canary_current_status = _read_signal_canary()
+        if stable_value != canary_current_status:
+            consequtive_opposite_values_counter += 1
+            next_probable_state = canary_current_status
+        else:
+            consequtive_opposite_values_counter = 0
+            next_probable_state = None
+
+        # 2 decide what to do with collected
+        signal_to_emit = None
+        if consequtive_opposite_values_counter >= (TRIGGER_CYCLES_COUNT):           
+            stable_value = next_probable_state
+            signal_to_emit = next_probable_state
+            next_probable_state = None
+            consequtive_opposite_values_counter = 0
+
+        # 999 emit at ANY cause
+        try: # IF EMPTY --> just PUSH
+            injected_queue.put_nowait(signal_to_emit)
+            last_emitted = signal_to_emit
+
+        except queue.Full: # IF FULL --> careful
+
+            if last_emitted is not None:
+                if signal_to_emit is not last_emitted:
+                    injected_queue.get_nowait()
+                    injected_queue.put_nowait(signal_to_emit)
+                    last_emitted = signal_to_emit
+            else:
+                injected_queue.get_nowait()
+                injected_queue.put_nowait(signal_to_emit)
+                last_emitted = signal_to_emit
+
+
+        #9999 wait a little
+        time.sleep(_DELAY)
+
+def poller_canary_debounced(injected_queue):
+
+    last_emitted = None
+    last_bool_emitted = None
+    stable_value = None
+    next_probable_state = None
+
+    TRIGGER_CYCLES_COUNT = 30
+    consequtive_opposite_values_counter = 0
+
+    while True:
+
+        # 1 collect proof 
+        canary_current_status = _read_signal_canary()
+        if stable_value != canary_current_status:
+            consequtive_opposite_values_counter += 1
+            next_probable_state = canary_current_status
+        else:
+            consequtive_opposite_values_counter = 0
+            next_probable_state = None
+
+        # 2 decide what to do with collected
+        signal_to_emit = None
+        if consequtive_opposite_values_counter >= (TRIGGER_CYCLES_COUNT):           
+            stable_value = next_probable_state
+            signal_to_emit = next_probable_state
+            next_probable_state = None
+            consequtive_opposite_values_counter = 0
+
+
+        # 999 emit if different
+        try: # IF EMPTY --> just PUSH
+            injected_queue.put_nowait(signal_to_emit)
+            last_emitted = signal_to_emit
+
+        except queue.Full: # IF FULL --> careful
+
+            if signal_to_emit is not None:
+                if signal_to_emit != last_emitted:
+                    injected_queue.get_nowait()
+                    injected_queue.put_nowait(signal_to_emit)
+                    last_emitted = signal_to_emit
+
+        #9999 wait a little
+        time.sleep(_DELAY)
+
+#---------------------------------------------------------#
+
+def decide_and_apply(canary_healthy, swtiches_healthy, side_effects) -> str:
+    if canary_healthy and swtiches_healthy:
+        status = "OK Returned back to normal (AC). Waking servers up . . ."
+        # side_effects.full_log("Returned back to AC")
+        side_effects.start_servers_waking_routine()
+        return status
+
+    elif canary_healthy and not swtiches_healthy:
+        status = "OK Generator started. Waking servers up . . ."
+        side_effects.start_servers_waking_routine()
+        return status
+
+    elif not canary_healthy and swtiches_healthy:
+        status = "BAD Check canary signal_to_emit. Fallback to old rules . . ."
+        side_effects.start_servers_waking_routine()
+        return status
+
+    elif not canary_healthy and not swtiches_healthy:
+        status = "BAD No power, no generator. Suspending soon . . ."
+        side_effects.start_servers_suspending_routine()
+        return status

@@ -35,20 +35,15 @@ def main():
     while True:
         try:
             queue_read_value_canary = queue_canary.get_nowait()
-            stable_state_canary = queue_read_value_canary
-            print(f"Canary STATUS CHANGED: {queue_read_value_canary}")
+            print(f"Canary STATUS: {queue_read_value_canary}")
         except queue.Empty:
-            # pass
-            print(f"Canary current state: {stable_state_canary}")
+            pass
 
         try:
             queue_read_value_pingie = queue_pingie.get_nowait()
-            stable_state_pingie = queue_read_value_pingie
-            print(f"Switches STATUS CHANGED: {queue_read_value_pingie}")
+            print(f"Switches STATUS: {queue_read_value_pingie}")
         except queue.Empty:
-            # pass
-            print(f"Switches current state: {stable_state_pingie}")
-
+            pass
 
         time.sleep(0.5)
 
