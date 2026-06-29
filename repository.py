@@ -87,7 +87,10 @@ def poller_switches(queue):
         # gsrgsrg
         # gsrgsrg# gsrgsrg
         # gsrgsrg
+        # gsrgsrg# gsrgsrg        # gsrgsrg# gsrgsrg
         # gsrgsrg# gsrgsrg
+        # gsrgsrg# gsrgsrg
+
 
 
 
