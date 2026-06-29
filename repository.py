@@ -74,28 +74,6 @@ def poller_switches(queue):
                 queue.put_nowait(current_readings)
 
         time.sleep(DELAY)
-        time.sleep(DELAY)
-        time.sleep(DELAY)
-        time.sleep(DELAY)
-        time.sleep(DELAY)
-        time.sleep(DELAY)
-        time.sleep(DELAY)
-        time.sleep(DELAY)
-        time.sleep(DELAY)
-        time.sleep(DELAY)
-        time.sleep(DELAY)
-        # gsrgsrg
-        # gsrgsrg# gsrgsrg
-        # gsrgsrg
-        # gsrgsrg# gsrgsrg        # gsrgsrg# gsrgsrg
-        # gsrgsrg# gsrgsrg
-        # gsrgsrg# gsrgsrg
-
-
-
-
-
-
 
 def poller_canary_debounced(queue):
 
