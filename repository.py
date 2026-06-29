@@ -67,12 +67,15 @@ def poller_switches(queue):
             last_state = current_readings
 
             try:
+
                 queue.put_nowait(current_readings)      # Replace if full
             except queue.Full:
                 queue.get_nowait()
                 queue.put_nowait(current_readings)
 
         time.sleep(DELAY)
+        time.sleep(DELAY)
+
 
 
 
