@@ -2,9 +2,10 @@
 import time
 import threading
 import queue
+from state import PowerState, PowerStateName, Inputs
+from dataclasses import replace
 
 import repository
-import state
 
 def main():
     print("Canary Monitor Started")
@@ -29,14 +30,17 @@ def main():
     thread_switches.start()
 
 
-    stable_state_canary = None
-    stable_state_pingie = None
-
     #999 main cycle: react to changes in signals (WIP)
+    current_inputs = Inputs()
+    current_state = PowerState()
+
     while True:
         try:
-            queue_read_value_canary = queue_canary.get_nowait()
-            print(f"Canary STATUS: {queue_read_value_canary}")
+            canary_reading = queue_canary.get_nowait()
+            print(f"Canary STATUS: {canary_reading}")
+            current_inputs = replace(current_inputs, canary_healthy = canary_reading)
+            current_state = repository.react(current_state, current_inputs)
+
         except queue.Empty:
             pass
 

@@ -2,9 +2,9 @@ import subprocess
 from icmplib import ping
 import time
 import queue
-from dataclasses import dataclass
+from dataclasses import replace
 
-import state
+from state import PowerState, PowerStateName, Inputs
 
 _CANARY_DEAD = '"17"=inactive'
 _CANARY_ALIVE = '"17"=active'
@@ -21,21 +21,6 @@ _SWITCH_IPS_REAL = [
     "172.16.40.104",
     "172.16.40.105",
 ]
-
-@dataclass
-class Inputs:
-    canary_healthy: bool
-    switches_healthy: bool
-
-
-
-
-# @dataclass
-# class State:
-#     name: str
-#     suspend_sent: bool = False
-#     same_input_ticks: int = 0
-
 
 def _read_signal_canary():
 
@@ -298,39 +283,69 @@ def poller_canary_debounced(injected_queue):
 
 #---------------------------------------------------------#
 
-# def decide_and_apply(inputs: Inputs, side_effects_box: SideEffects) -> str:
+def react(old_state: PowerState, i: Inputs) -> PowerState:
+    if i.canary_healthy is None and i.switches_healthy is None:
 
-#     if canary_healthy and switches_healthy:
-#         status = "OK Returned back to normal (AC). Waking servers up . . ."
-#         # side_effects_box.full_log("Returned back to AC")
-#         side_effects_box.start_servers_waking_routine()
-#         return status
+        inremented = old_state.ticks_counter + 1
 
-#     elif canary_healthy and not switches_healthy:
-#         status = "OK Generator started. Waking servers up . . ."
-#         side_effects_box.start_servers_waking_routine()
-#         return status
+        if (old_state.canary_latest_bool == False 
+        and old_state.switches_latest_bool == False
+        and old_state.ticks_counter >= 3000): #five minutes timeout
 
-#     elif not canary_healthy and switches_healthy:
-#         status = "BAD Check canary signal_to_emit. Fallback to old rules . . ."
-#         side_effects_box.start_servers_waking_routine()
-#         return status
+            #cancel all tasks and nulify the counter
+            #replace routine in the thread to suspending one
+            print("New state is BAD_ON_BBU")
+            return replace(old_state, ticks_counter = 0, status = PowerStateName.BAD_ON_BBU)
 
-#     elif not canary_healthy and not switches_healthy:
-#         status = "BAD No power, no generator. Suspending soon . . ."
-#         side_effects_box.start_servers_suspending_routine()
-#         return status
+        elif (old_state.canary_latest_bool == False 
+        and old_state.switches_latest_bool == True
+        and old_state.ticks_counter >= 60): #6 seconds timout
 
-# def transform(inp: Inputs) -> PowerStateName:
-#     if inp.canary_healthy and inp.switches_healthy:
-#         return PowerStateName.OK_HEALTHY
-#     elif inp.canary_healthy and not inp.switches_healthy:
-#         return PowerStateName.OK_GENERATOR
-#     elif not inp.canary_healthy and not inp.switches_healthy:
-#         return PowerStateName.BAD_ON_BBU
-#     else:
-#         return PowerStateName.BAD_CANARY_DEAD
+            #cancel all tasks and nulify the counter
+            #replace routine in the thread to restoring one (FALLBACK)
+            print("New state is BAD_CANARY_DEAD")
+            return replace(old_state, ticks_counter = 0, status = PowerStateName.BAD_CANARY_DEAD)
 
-def react(old_state, inputs, routine_manager):
+        return replace(old_state, ticks_counter = inremented)
 
-        
+    else: # anything but None annywhere
+
+        if i.canary_healthy and i.switches_healthy:
+            #cancel all tasks and nulify the counter
+            #replace routine in the thread to restoring one
+            print("New state is OK_HEALTHY")
+            return replace(old_state, 
+                            ticks_counter = 0, 
+                            status = PowerStateName.OK_HEALTHY,
+                            canary_latest_bool = i.canary_healthy,
+                            switches_latest_bool = i.switches_healthy,
+                        )
+        elif i.canary_healthy and not i.switches_healthy:
+            #cancel all tasks and nulify the counter
+            #replace routine in the thread to restoring one
+            print("New state is OK_GENERATOR")
+            return replace(old_state, 
+                            ticks_counter = 0, 
+                            status = PowerStateName.OK_GENERATOR,
+                            canary_latest_bool = i.canary_healthy,
+                            switches_latest_bool = i.switches_healthy,                            
+                        )
+        elif not i.canary_healthy and not i.switches_healthy:
+            return replace(old_state, 
+                            ticks_counter = 0, 
+                            # status = PowerStateName.BAD_ON_BBU,
+                            canary_latest_bool = i.canary_healthy,
+                            switches_latest_bool = i.switches_healthy,
+                        )
+        elif not i.canary_healthy and i.switches_healthy:
+            return replace(old_state, 
+                            ticks_counter = 0, 
+                            # status = PowerStateName.BAD_CANARY_DEAD,
+                            canary_latest_bool = i.canary_healthy,
+                            switches_latest_bool = i.switches_healthy,
+                        )
+
+
+
+
+                
