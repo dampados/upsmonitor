@@ -4,6 +4,7 @@ import threading
 import queue
 
 import repository
+import state
 
 def main():
     print("Canary Monitor Started")

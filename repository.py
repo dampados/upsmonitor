@@ -4,6 +4,8 @@ import time
 import queue
 from dataclasses import dataclass
 
+import state
+
 _CANARY_DEAD = '"17"=inactive'
 _CANARY_ALIVE = '"17"=active'
 
@@ -23,13 +25,16 @@ _SWITCH_IPS_REAL = [
 @dataclass
 class Inputs:
     canary_healthy: bool
-    swtiches_healthy: bool
+    switches_healthy: bool
 
-@dataclass
-class State:
-    name: str
-    suspend_sent: bool = False
-    same_input_ticks: int = 0
+
+
+
+# @dataclass
+# class State:
+#     name: str
+#     suspend_sent: bool = False
+#     same_input_ticks: int = 0
 
 
 def _read_signal_canary():
@@ -293,24 +298,39 @@ def poller_canary_debounced(injected_queue):
 
 #---------------------------------------------------------#
 
-def decide_and_apply(canary_healthy, swtiches_healthy, side_effects) -> str:
-    if canary_healthy and swtiches_healthy:
-        status = "OK Returned back to normal (AC). Waking servers up . . ."
-        # side_effects.full_log("Returned back to AC")
-        side_effects.start_servers_waking_routine()
-        return status
+# def decide_and_apply(inputs: Inputs, side_effects_box: SideEffects) -> str:
 
-    elif canary_healthy and not swtiches_healthy:
-        status = "OK Generator started. Waking servers up . . ."
-        side_effects.start_servers_waking_routine()
-        return status
+#     if canary_healthy and switches_healthy:
+#         status = "OK Returned back to normal (AC). Waking servers up . . ."
+#         # side_effects_box.full_log("Returned back to AC")
+#         side_effects_box.start_servers_waking_routine()
+#         return status
 
-    elif not canary_healthy and swtiches_healthy:
-        status = "BAD Check canary signal_to_emit. Fallback to old rules . . ."
-        side_effects.start_servers_waking_routine()
-        return status
+#     elif canary_healthy and not switches_healthy:
+#         status = "OK Generator started. Waking servers up . . ."
+#         side_effects_box.start_servers_waking_routine()
+#         return status
 
-    elif not canary_healthy and not swtiches_healthy:
-        status = "BAD No power, no generator. Suspending soon . . ."
-        side_effects.start_servers_suspending_routine()
-        return status
+#     elif not canary_healthy and switches_healthy:
+#         status = "BAD Check canary signal_to_emit. Fallback to old rules . . ."
+#         side_effects_box.start_servers_waking_routine()
+#         return status
+
+#     elif not canary_healthy and not switches_healthy:
+#         status = "BAD No power, no generator. Suspending soon . . ."
+#         side_effects_box.start_servers_suspending_routine()
+#         return status
+
+# def transform(inp: Inputs) -> PowerStateName:
+#     if inp.canary_healthy and inp.switches_healthy:
+#         return PowerStateName.OK_HEALTHY
+#     elif inp.canary_healthy and not inp.switches_healthy:
+#         return PowerStateName.OK_GENERATOR
+#     elif not inp.canary_healthy and not inp.switches_healthy:
+#         return PowerStateName.BAD_ON_BBU
+#     else:
+#         return PowerStateName.BAD_CANARY_DEAD
+
+def react(old_state, inputs, routine_manager):
+
+        
