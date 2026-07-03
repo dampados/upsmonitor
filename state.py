@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 class PowerStateName(Enum):
+    UNKNOWN = auto()
     OK_HEALTHY = auto()
     OK_GENERATOR = auto()
     BAD_ON_BBU = auto()
@@ -11,7 +12,7 @@ class PowerStateName(Enum):
 
 class PowerState:
     def __init__(self):
-        self.status = PowerStateName.BAD_ON_BBU
+        self.status = PowerStateName.UNKNOWN
         self.canary_latest_bool = None
         self.switches_latest_bool = None
         self.ticks_counter = 0

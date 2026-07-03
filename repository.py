@@ -283,14 +283,14 @@ def poller_canary_debounced(injected_queue):
 
 #---------------------------------------------------------#
 
-def react(old_state: PowerState, i: Inputs) -> PowerState:
+def react_deprecated(old_state: PowerState, i: Inputs) -> PowerState:
     if i.canary_healthy is None and i.switches_healthy is None:
 
         inremented = old_state.ticks_counter + 1
 
         if (old_state.canary_latest_bool == False 
         and old_state.switches_latest_bool == False
-        and old_state.ticks_counter >= 3000): #five minutes timeout
+        and old_state.ticks_counter >= 60): #five minutes timeout
 
             #cancel all tasks and nulify the counter
             #replace routine in the thread to suspending one
@@ -306,6 +306,25 @@ def react(old_state: PowerState, i: Inputs) -> PowerState:
             print("New state is BAD_CANARY_DEAD")
             return replace(old_state, ticks_counter = 0, status = PowerStateName.BAD_CANARY_DEAD)
 
+
+        elif (old_state.canary_latest_bool == True 
+        and old_state.switches_latest_bool == True
+        and old_state.ticks_counter >= 60): #6 seconds timout
+
+            #cancel all tasks and nulify the counter
+            #replace routine in the thread to restoring one (FALLBACK)
+            print("New state is OK_HEALTHY")
+            return replace(old_state, ticks_counter = 0, status = PowerStateName.OK_HEALTHY)
+
+        elif (old_state.canary_latest_bool == True 
+        and old_state.switches_latest_bool == False
+        and old_state.ticks_counter >= 60): #6 seconds timout
+
+            #cancel all tasks and nulify the counter
+            #replace routine in the thread to restoring one (FALLBACK)
+            print("New state is OK_GENERATOR")
+            return replace(old_state, ticks_counter = 0, status = PowerStateName.OK_GENERATOR)
+
         return replace(old_state, ticks_counter = inremented)
 
     else: # anything but None annywhere
@@ -313,20 +332,20 @@ def react(old_state: PowerState, i: Inputs) -> PowerState:
         if i.canary_healthy and i.switches_healthy:
             #cancel all tasks and nulify the counter
             #replace routine in the thread to restoring one
-            print("New state is OK_HEALTHY")
+            # print("New state is OK_HEALTHY")
             return replace(old_state, 
                             ticks_counter = 0, 
-                            status = PowerStateName.OK_HEALTHY,
-                            canary_latest_bool = i.canary_healthy,
+                            # status = PowerStateName.OK_HEALTHY,
+                             canary_latest_bool = i.canary_healthy,
                             switches_latest_bool = i.switches_healthy,
                         )
         elif i.canary_healthy and not i.switches_healthy:
             #cancel all tasks and nulify the counter
             #replace routine in the thread to restoring one
-            print("New state is OK_GENERATOR")
+            # print("New state is OK_GENERATOR")
             return replace(old_state, 
                             ticks_counter = 0, 
-                            status = PowerStateName.OK_GENERATOR,
+                            # status = PowerStateName.OK_GENERATOR,
                             canary_latest_bool = i.canary_healthy,
                             switches_latest_bool = i.switches_healthy,                            
                         )
@@ -346,6 +365,46 @@ def react(old_state: PowerState, i: Inputs) -> PowerState:
                         )
 
 
+# current inputs are the KEY to THIS mapping dict --> solves elif hell
+STATE_MAPPING = {
+    (False, False): PowerStateName.BAD_ON_BBU,
+    (False, True):  PowerStateName.BAD_CANARY_DEAD,
+    (True, True):   PowerStateName.OK_HEALTHY,
+    (True, False):  PowerStateName.OK_GENERATOR,
+}
 
+# router 
+def react(old_state: PowerState, i: Inputs) -> PowerState:
+    if i.canary_healthy is None and i.switches_healthy is None:
+
+        STATE_CHANGE_DEBOUNCING_PERIOD = 60 # each tick is 0.1 delay
+        incremented = old_state.ticks_counter + 1
+
+        if old_state.ticks_counter >= STATE_CHANGE_DEBOUNCING_PERIOD: # ALERT: state is stable
+
+            # start the assigned in STATE MAPPING routine here!!!
+
+            current_readings_key = (old_state.canary_latest_bool, old_state.switches_latest_bool) #fetch the key
+            power_state_name = STATE_MAPPING.get(current_readings_key) #challege dict by key
+            return replace(
+                old_state,
+                ticks_counter = 0,
+                status = power_state_name
+            )
+
+        else: # keep ticking
+            return replace(
+                old_state,
+                ticks_counter = incremented,
+            )
+
+    else:
+        return replace(
+            old_state,
+            ticks_counter = 0,
+            canary_latest_bool = i.canary_healthy,
+            switches_latest_bool = i.switches_healthy,
+        )
+        
 
                 
