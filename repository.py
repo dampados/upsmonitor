@@ -5,6 +5,7 @@ import queue
 from dataclasses import replace
 
 from state import PowerState, PowerStateName, Inputs
+from custom_types import ActionBox
 
 _CANARY_DEAD = '"17"=inactive'
 _CANARY_ALIVE = '"17"=active'
@@ -374,7 +375,7 @@ STATE_MAPPING = {
 }
 
 # router 
-def react(old_state: PowerState, i: Inputs) -> PowerState:
+def react(old_state: PowerState, i: Inputs, a: ActionBox) -> PowerState:
     if i.canary_healthy is None and i.switches_healthy is None:
 
         STATE_CHANGE_DEBOUNCING_PERIOD = 60 # each tick is 0.1 delay
@@ -382,15 +383,24 @@ def react(old_state: PowerState, i: Inputs) -> PowerState:
 
         if old_state.ticks_counter >= STATE_CHANGE_DEBOUNCING_PERIOD: # ALERT: state is stable
 
-            # start the assigned in STATE MAPPING routine here!!!
 
             current_readings_key = (old_state.canary_latest_bool, old_state.switches_latest_bool) #fetch the key
             power_state_name = STATE_MAPPING.get(current_readings_key) #challege dict by key
-            return replace(
-                old_state,
-                ticks_counter = 0,
-                status = power_state_name
-            )
+
+            # start the assigned in STATE MAPPING routine here!!!
+            if power_state_name != old_state.status:
+                if power_state_name != PowerStateName.BAD_ON_BBU:
+                    a.start_restoring_routine()
+                else:
+                    a.start_suspending_routine()
+
+                return replace(
+                    old_state,
+                    ticks_counter = 0,
+                    status = power_state_name
+                )
+            else: 
+                return replace(old_state, ticks_counter = 0)
 
         else: # keep ticking
             return replace(
@@ -402,8 +412,12 @@ def react(old_state: PowerState, i: Inputs) -> PowerState:
         return replace(
             old_state,
             ticks_counter = 0,
-            canary_latest_bool = i.canary_healthy,
-            switches_latest_bool = i.switches_healthy,
+            canary_latest_bool = ( i.canary_healthy 
+                if i.canary_healthy is not None
+                else old_state.canary_latest_bool ),
+            switches_latest_bool = ( i.switches_healthy
+                if i.switches_healthy is not None
+                else old_state.switches_latest_bool),
         )
         
 

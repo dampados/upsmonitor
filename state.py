@@ -10,12 +10,27 @@ class PowerStateName(Enum):
     BAD_ON_BBU = auto()
     BAD_CANARY_DEAD = auto()
 
+# @dataclass
+# class PowerState:
+#     def __init__(self):
+#         self.status = PowerStateName.UNKNOWN
+#         self.canary_latest_bool = None
+#         self.switches_latest_bool = None
+#         self.ticks_counter = 0
+
+# @dataclass
+# class PowerState:
+#     status = PowerStateName.UNKNOWN
+#     canary_latest_bool = None
+#     switches_latest_bool = None
+#     ticks_counter = 0
+
+@dataclass
 class PowerState:
-    def __init__(self):
-        self.status = PowerStateName.UNKNOWN
-        self.canary_latest_bool = None
-        self.switches_latest_bool = None
-        self.ticks_counter = 0
+    status: PowerStateName = PowerStateName.UNKNOWN
+    canary_latest_bool: Optional[bool] = None
+    switches_latest_bool: Optional[bool] = None
+    ticks_counter: int = 0
 
 @dataclass
 class Inputs:
