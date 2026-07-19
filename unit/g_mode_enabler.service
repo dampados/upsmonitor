@@ -1,0 +1,12 @@
+[Unit]
+Description=Enable Wake-on-LAN g-mode on physical NICs
+After=local-fs.target
+Before=network.target ssh.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/g_mode_enabler.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
