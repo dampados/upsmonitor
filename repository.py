@@ -4,8 +4,7 @@ import time
 import queue
 from dataclasses import replace
 
-from state import PowerState, PowerStateName, Inputs
-from custom_types import ActionBox
+from models import PowerStateName, PowerState, Inputs, ActionBox, ActionBoxMock
 
 _CANARY_DEAD = '"17"=inactive'
 _CANARY_ALIVE = '"17"=active'
@@ -22,6 +21,8 @@ _SWITCH_IPS_REAL = [
     "172.16.40.104",
     "172.16.40.105",
 ]
+
+
 
 def _read_signal_canary():
 
@@ -42,7 +43,7 @@ def _read_signal_canary():
             return True
             
     except subprocess.TimeoutExpired:
-        # logging.warning("GPIO read timed out")
+        # logging.warning````("GPIO read timed out")
         return True
     except FileNotFoundError:
         # logging.error("gpioget not installed")
@@ -419,6 +420,5 @@ def react(old_state: PowerState, i: Inputs, a: ActionBox) -> PowerState:
                 if i.switches_healthy is not None
                 else old_state.switches_latest_bool),
         )
-        
-
                 
+        

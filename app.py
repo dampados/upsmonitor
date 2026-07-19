@@ -2,10 +2,11 @@
 import time
 import threading
 import queue
-from state import PowerState, PowerStateName, Inputs
 from dataclasses import replace
 
 import repository
+from models import PowerStateName, PowerState, Inputs, ActionBox, ActionBoxMock
+
 
 def main():
     print("Canary Monitor Started")
