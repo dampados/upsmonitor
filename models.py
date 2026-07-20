@@ -4,6 +4,19 @@ from dataclasses import dataclass
 from typing import Optional
 from abc import ABC, abstractmethod
 
+# === MUTEX WRAPPERS ===
+class HostsHealthStatusWrapper:
+    def __init__(self, initial_status: dict = None):
+        self._status = initial_status if initial_status is not None else {}
+        self._lock = threading.Lock()
+    
+    def update(self, new_status):
+        with self._lock:
+            self._status = new_status
+    
+    def get(self):
+        with self._lock:
+            return self._status.copy()
 
 # === ENUMS ===
 class PowerStateName(Enum):
@@ -12,6 +25,11 @@ class PowerStateName(Enum):
     OK_GENERATOR = auto()
     BAD_ON_BBU = auto()
     BAD_CANARY_DEAD = auto()
+
+class HostState(Enum):
+    UNKNOWN = auto()
+    ALIVE = auto()
+    DEAD = auto()
 
 class Routine(Enum):
     """Tracks which routine was launched (for testing)."""
@@ -57,4 +75,19 @@ class ActionBoxMock(ActionBox):
     
     def start_restoring_routine(self) -> None:
         self.current_routine = Routine.RESTORE
+
+# # === REAL CLASSES ===
+# class ActionBoxReal(ActionBox):
+#     """REAL ONE finally"""
+
+#     def __init__(
+#         self, 
+#         hosts_health_status_wrapper_obj, 
+#         suspending_routine,
+#         restoring_routine,
+#     ):
+
+#     def __init__(self, initial_status: dict = None):
+#         self._status = initial_status if initial_status is not None else {}
+#         self._lock = threading.Lock()
 

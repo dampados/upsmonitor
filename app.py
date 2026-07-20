@@ -5,17 +5,35 @@ import queue
 from dataclasses import replace
 
 import repository
-from models import PowerStateName, PowerState, Inputs, ActionBox, ActionBoxMock
-
+from repository import HostsHealthStatusWrapper
+from models import PowerStateName, PowerState, Inputs, ActionBox, ActionBoxMock, HostState
+from helper_functions import load_config, clear_screen, print_dashboard
 
 def main():
-    print("Canary Monitor Started")
-    
-    #0 spawn QUEUEs (like channels in golang)
-    queue_canary = queue.Queue(maxsize=1)
-    queue_pingie = queue.Queue(maxsize=1)
 
-    #0 START sensors routines 
+    #0 READ config: credentials AND inventory. READ ONLY!
+    CREDS_FILENAME = "creds.json"
+    INVENTORY_FILENAME = "inventory.json"
+
+    try:
+        # no nested scope here!
+        CREDS, INVENTORY = load_config(CREDS_FILENAME, INVENTORY_FILENAME)
+    except FileNotFoundError as e:
+        print(f"Config file not found! : {e.filename}")
+        return 1
+
+    #0 Template for the pinger: just the list of hostnames it needs to ping
+    # HOSTNAMES = [host["name"] for host in INVENTORY["hosts"]]
+    HOST_TO_IP_MAP = {host["name"]: host["ip"] for host in INVENTORY["hosts"]}
+
+
+    #0.5 spawn QUEUEs (like channels in golang)
+    queue_canary = queue.Queue(maxsize=1)
+    queue_ac_switches = queue.Queue(maxsize=1)
+    queue_hosts_status = queue.Queue(maxsize=1)
+
+#--------------START sensors routines!------------------#
+    #1 START canary sensor 
     thread_cannary = threading.Thread(
         target=repository.poller_canary_debounced,
         args=(queue_canary,)
@@ -23,35 +41,67 @@ def main():
     thread_cannary.daemon = True
     thread_cannary.start()
 
+    #2 START ac switches sensor
     thread_switches = threading.Thread(
         target = repository.poller_switches,
-        args=(queue_pingie,)
+        args=(queue_ac_switches,)
     )
     thread_switches.daemon = True
     thread_switches.start()
 
+    #3 START hosts health sensor
+    thread_hosts_health = threading.Thread(
+        target = repository.poller_hosts_health,
+        args=(queue_hosts_status, HOST_TO_IP_MAP)
+    )
+    thread_hosts_health.daemon = True
+    thread_hosts_health.start()
+
+
+#---------------------main_loop-------------------------#
 
     #999 main cycle: react to changes in signals (WIP)
     current_inputs = Inputs()
-    current_state = PowerState()
+    current_power_state = PowerState()
+    # current_hosts_health_status = {host["name"]: HostState.UNKNOWN for host in INVENTORY["hosts"]}
+    current_hosts_health_status = HostsHealthStatusWrapper(
+        {host["name"]: HostState.UNKNOWN for host in INVENTORY["hosts"]}
+    )
+
+
+    # DELETEME 
+    action_box = ActionBoxMock()
+    # DELETEME 
+
+    
 
     while True:
         try:
             canary_reading = queue_canary.get_nowait()
-            print(f"Canary STATUS: {canary_reading}")
+            # print(f"Canary STATUS: {canary_reading}")
             current_inputs = replace(current_inputs, canary_healthy = canary_reading)
-            current_state = repository.react(current_state, current_inputs)
-
+            current_power_state = repository.react(current_power_state, current_inputs, action_box)
         except queue.Empty:
             pass
 
         try:
-            queue_read_value_pingie = queue_pingie.get_nowait()
-            print(f"Switches STATUS: {queue_read_value_pingie}")
+            ac_switches_reading = queue_ac_switches.get_nowait()
+            # print(f"Switches STATUS: {ac_switches_reading}")
+            current_inputs = replace(current_inputs, switches_healthy = ac_switches_reading)
+            current_power_state = repository.react(current_power_state, current_inputs, action_box)
         except queue.Empty:
             pass
 
-        time.sleep(0.5)
+        try:
+            hosts_health_reading = queue_hosts_status.get_nowait()
+            # print(f"Hosts STATUS: {hosts_health_reading}")
+            current_hosts_health_status = hosts_health_reading
+        except queue.Empty:
+            pass
+            
+        print_dashboard(current_power_state, current_hosts_health_status)
+
+        time.sleep(repository.GLOBAL_DELAY)
 
 if __name__ == "__main__":
     main()
