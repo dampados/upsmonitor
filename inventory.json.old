@@ -1,0 +1,66 @@
+`{
+  "hosts": [
+    {
+      "name": "infra-serv",
+      "os_type": "windows",
+      "ip": "172.16.40.98",
+      "cred_set": "creds_windows_en",
+      "macs": ["34:5a:60:dd:90:0c"]
+    },
+    {
+      "name": "server1c",
+      "ip": "172.16.38.134",
+      "cred_set": "creds_windows_ru",
+      "macs": ["30:9c:23:68:08:ad"]
+    },
+    {
+      "name": "1c-serv",
+      "ip": "172.16.40.135",
+      "cred_set": "creds_windows_ru",
+      "macs": ["d8:5e:d3:0c:d5:62"]
+    },
+    {
+      "name": "rocinante1",
+      "os_type": "linux",
+      "ip": "172.16.40.21",
+      "cred_set": "creds_proxmox",
+      "macs": ["bc:22:28:fc:b7:24", "30:56:0f:06:58:5e"]
+    },
+    {
+      "name": "pavelitel",
+      "ip": "172.16.40.16",
+      "cred_set": "creds_proxmox",
+      "macs": ["a0:a3:f0:15:90:34", "60:a4:4c:4f:49:de", "60:a4:4c:4f:4c:36"]
+    },
+    {
+      "name": "dl380g5a",
+      "ip": "172.16.40.13",
+      "cred_set": "creds_proxmox",
+      "macs": ["00:19:bb:cb:86:a6", "00:19:bb:cb:86:a4"]
+    },
+    {
+      "name": "dl380g8",
+      "ip": "172.16.40.9",
+      "cred_set": "creds_proxmox",
+      "macs": ["ac:16:2d:8a:1b:40", "ac:16:2d:8a:1b:41", "ac:16:2d:8a:1b:42", "ac:16:2d:8a:1b:43"]
+    },
+    {
+      "name": "r720",
+      "ip": "172.16.40.7",
+      "cred_set": "creds_proxmox",
+      "macs": ["b8:ca:3a:5c:3e:8c", "b8:ca:3a:5c:3e:8d", "b8:ca:3a:5c:3e:8e", "b8:ca:3a:5c:3e:8f"]
+    },
+    {
+      "name": "r720xd",
+      "ip": "172.16.40.11",
+      "cred_set": "creds_proxmox",
+      "macs": ["c8:1f:66:df:e0:fc", "c8:1f:66:df:e0:fd", "c8:1f:66:df:e0:fe", "c8:1f:66:df:e0:ff"]
+    },
+    {
+      "name": "des",
+      "ip": "172.16.40.24",
+      "cred_set": "creds_proxmox",
+      "macs": ["a0:a3:f0:15:90:3d", "60:cf:84:ac:b0:cb"]
+    }
+  ]
+}`
