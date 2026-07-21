@@ -5,9 +5,10 @@ import queue
 from dataclasses import replace
 
 import repository
-from repository import HostsHealthStatusWrapper
-from models import PowerStateName, PowerState, Inputs, ActionBox, ActionBoxMock, HostState
-from helper_functions import load_config, clear_screen, print_dashboard
+from models import PowerState, Inputs, HostState, HostsHealthStatusWrapper
+from helper_functions import load_config, print_dashboard
+from actionbox import ActionBoxReal
+import http_server
 
 def main():
 
@@ -70,10 +71,18 @@ def main():
 
 
     # DELETEME 
-    action_box = ActionBoxMock()
+    # action_box = ActionBoxMock()
     # DELETEME 
 
-    
+    action_box = ActionBoxReal(
+        current_hosts_health_status,
+        CREDS,
+        INVENTORY,
+    )
+
+    action_box.start_suspending_routine()   # should print and run for 5s
+    time.sleep(2)
+    action_box.start_restoring_routine() 
 
     while True:
         try:
@@ -95,7 +104,9 @@ def main():
         try:
             hosts_health_reading = queue_hosts_status.get_nowait()
             # print(f"Hosts STATUS: {hosts_health_reading}")
-            current_hosts_health_status = hosts_health_reading
+            # current_hosts_health_status = hosts_health_reading
+            current_hosts_health_status.update(hosts_health_reading)  # MUTEXED UPDATE BC SHARED SHIT
+
         except queue.Empty:
             pass
             

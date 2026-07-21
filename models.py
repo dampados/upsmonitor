@@ -3,6 +3,7 @@ from enum import Enum, auto
 from dataclasses import dataclass
 from typing import Optional
 from abc import ABC, abstractmethod
+import threading
 
 # === MUTEX WRAPPERS ===
 class HostsHealthStatusWrapper:

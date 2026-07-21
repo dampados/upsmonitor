@@ -125,6 +125,26 @@ class ActionBoxReal(ActionBox):
                 break
             time.sleep(5)
 
+    def _suspending_routine_mock(self, stop_event) -> None:
+        print("🟡 SUSPEND: started")
+        for i in range(5):
+            if stop_event.is_set():  # ← use the passed event
+                print("🟡 SUSPEND: stopped early")
+                return
+            print(f"🟡 SUSPEND: working... {i+1}/5")
+            time.sleep(1)
+        print("🟢 SUSPEND: finished")
+
+    def _restoring_routine_mock(self, stop_event) -> None:
+        print("🔵 RESTORE: started")
+        for i in range(5):
+            if stop_event.is_set():  # ← use the passed event
+                print("🔵 RESTORE: stopped early")
+                return
+            print(f"🔵 RESTORE: working... {i+1}/5")
+            time.sleep(1)
+        print("🟢 RESTORE: finished")
+
     def _start_routine(self, target):
         if self._thread and self._thread.is_alive():
             self._stop_event.set()
@@ -135,11 +155,13 @@ class ActionBoxReal(ActionBox):
         self._thread.daemon = True
         self._thread.start()
 
+
+
 # ----- public  ----- $
 
     def start_suspending_routine(self):
-        self._start_routine(self._suspending_routine)
+        self._start_routine(self._suspending_routine_mock)
 
     def start_restoring_routine(self):
-        self._start_routine(self._restoring_routine)
+        self._start_routine(self._restoring_routine_mock)
 
