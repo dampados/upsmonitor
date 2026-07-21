@@ -1,6 +1,7 @@
 from models import ActionBox, HostsHealthStatusWrapper, HostState
 import subprocess
 import time
+import threading
 
 class ActionBoxReal(ActionBox):
     def __init__(
@@ -9,8 +10,10 @@ class ActionBoxReal(ActionBox):
             creds: dict,
             inventory: dict,
             ):
-        self._hosts_status = hosts_status
-        self._hosts_combined_ram = []
+        self._thread = None                 # ref to a singular per instance thread
+        self._thread_stop_event = threading.Event() # stop event
+        self._hosts_status = hosts_status   # alive or dead statuses
+        self._hosts_combined_ram = []       # obvious!
         # self._creds = creds
         # self._inventory_ram = inventory
 
@@ -26,12 +29,23 @@ class ActionBoxReal(ActionBox):
                 "password": creds_for_host.get("password"),
             })
     
-    def start_suspending_routine(self) -> None:
-        # SSH suspend all alive hosts
-        pass
+        # thread_cannary = threading.Thread(
+        #     target=None,
+        #     args=()
+        # )
+        # thread_cannary.daemon = True
+        # thread_cannary.start()
+
+# ----- INIT END ----- $
+
+# ----- private  ----- $
 
     def _suspending_routine(self) -> None:
         while True:
+
+            if self._stop_event.is_set():
+                break
+
             status = self._hosts_status.get()
 
             alive_linux = []
@@ -50,19 +64,82 @@ class ActionBoxReal(ActionBox):
             
             # Suspend Linux hosts
             for host in alive_linux:
-                cmd = ["sshpass", "-p", host["password"], "ssh", ... "systemctl", "suspend"]
-                subprocess.run(cmd, timeout=10, capture_output=True)
+
+                if self._stop_event.is_set():
+                    break
+
+                cmd = [
+                    "sshpass",
+                    "-p", host["password"],
+                    "ssh",
+                    "-o", "StrictHostKeyChecking=no",
+                    "-o", "ConnectTimeout=10",
+                    f"{host['user']}@{host['ip']}",
+                    "systemctl", "suspend"
+                ]
+                subprocess.run(cmd, timeout=15, capture_output=True)
 
             # Suspend Windows hosts
             for host in alive_windows:
                 # cmd = ["sshpass", "-p", host["password"], "ssh", ... "rundll32.exe powrprof.dll,SetSuspendState 0,1,0"]
                 # subprocess.run(cmd, timeout=10, capture_output=True)
                 pass
-        
+                
+            if self._stop_event.is_set():
+                    break
+
             time.sleep(2)
 
+    def _restoring_routine(self) -> None:
+        while True:
+            if self._stop_event.is_set():
+                break
 
+            status = self._hosts_status.get()
 
-    def start_restoring_routine(self) -> None:
-        # WoL all dead hosts
-        pass
+            dead_hosts = []
+            for host in self._hosts_combined_ram:
+                if status.get(host["name"]) == HostState.DEAD:
+                    dead_hosts.append(host)
+
+            if not dead_hosts:
+                break # EXIT + THREAD DEATH
+
+            for host in dead_hosts:
+                if self._stop_event.is_set():
+                    break
+
+                for mac in host["macs"]:
+                    if self._stop_event.is_set():
+                        break
+
+                    cmd = [
+                        "wakeonlan",
+                        mac
+                    ]
+                    subprocess.run(cmd, timeout=5, capture_output=True)
+
+                time.sleep(1)
+
+            if self._stop_event.is_set():
+                break
+            time.sleep(5)
+
+    def _start_routine(self, target):
+        if self._thread and self._thread.is_alive():
+            self._stop_event.set()
+            self._thread.join() #DEBUG
+        
+        self._stop_event = threading.Event()
+        self._thread = threading.Thread(target=target, args=(self._stop_event,))
+        self._thread.daemon = True
+        self._thread.start()
+
+# ----- public  ----- $
+
+    def start_suspending_routine(self):
+        self._start_routine(self._suspending_routine)
+
+    def start_restoring_routine(self):
+        self._start_routine(self._restoring_routine)
+
