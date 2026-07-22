@@ -80,9 +80,11 @@ def main():
         INVENTORY,
     )
 
-    action_box.start_suspending_routine()   # should print and run for 5s
-    time.sleep(2)
-    action_box.start_restoring_routine() 
+    http_server.start_dashboard_server(current_power_state, current_hosts_health_status)
+
+    # action_box.start_suspending_routine()   # should print and run for 5s
+    # time.sleep(2)
+    # action_box.start_restoring_routine() 
 
     while True:
         try:
@@ -113,6 +115,8 @@ def main():
         print_dashboard(current_power_state, current_hosts_health_status)
 
         time.sleep(repository.GLOBAL_DELAY)
+    # BLOCKING MAIN LOOP DONT PUT ANYTHING AFTER
+
 
 if __name__ == "__main__":
     main()

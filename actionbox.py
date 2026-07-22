@@ -41,6 +41,7 @@ class ActionBoxReal(ActionBox):
 # ----- private  ----- $
 
     def _suspending_routine(self) -> None:
+        print("suspend started")
         while True:
 
             if self._stop_event.is_set():
@@ -77,7 +78,9 @@ class ActionBoxReal(ActionBox):
                     f"{host['user']}@{host['ip']}",
                     "systemctl", "suspend"
                 ]
-                subprocess.run(cmd, timeout=15, capture_output=True)
+                subprocess.run(cmd, timeout=15, capture_output=False)
+                print("suspend issued")
+
 
             # Suspend Windows hosts
             for host in alive_windows:
@@ -91,6 +94,7 @@ class ActionBoxReal(ActionBox):
             time.sleep(2)
 
     def _restoring_routine(self) -> None:
+        print("restoring started")
         while True:
             if self._stop_event.is_set():
                 break
@@ -118,6 +122,7 @@ class ActionBoxReal(ActionBox):
                         mac
                     ]
                     subprocess.run(cmd, timeout=5, capture_output=True)
+                    print("restoring issued")
 
                 time.sleep(1)
 
@@ -151,7 +156,9 @@ class ActionBoxReal(ActionBox):
             self._thread.join() #DEBUG
         
         self._stop_event = threading.Event()
-        self._thread = threading.Thread(target=target, args=(self._stop_event,))
+        # self._thread = threading.Thread(target=target, args=(self._stop_event,))
+        # self._thread = threading.Thread(target=target, args=())
+        self._thread = threading.Thread(target=target)
         self._thread.daemon = True
         self._thread.start()
 
@@ -160,8 +167,8 @@ class ActionBoxReal(ActionBox):
 # ----- public  ----- $
 
     def start_suspending_routine(self):
-        self._start_routine(self._suspending_routine_mock)
+        self._start_routine(self._suspending_routine)
 
     def start_restoring_routine(self):
-        self._start_routine(self._restoring_routine_mock)
+        self._start_routine(self._restoring_routine)
 

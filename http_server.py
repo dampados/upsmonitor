@@ -62,11 +62,16 @@ class DashboardHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(html.encode())
 
+
+class ReusableHTTPServer(HTTPServer):
+    allow_reuse_address = True
+
+
 def start_dashboard_server(power_state: PowerState, hosts_status: HostsHealthStatusWrapper, port: int = 80):
     def handler(*args, **kwargs):
         return DashboardHandler(*args, power_state=power_state, hosts_status=hosts_status, **kwargs)
 
-    server = HTTPServer(('0.0.0.0', port), handler)
+    server = ReusableHTTPServer(('0.0.0.0', port), handler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     return server
