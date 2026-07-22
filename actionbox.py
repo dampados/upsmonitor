@@ -82,11 +82,28 @@ class ActionBoxReal(ActionBox):
                 print("suspend issued")
 
 
-            # Suspend Windows hosts
+            # # Suspend Windows hosts
+            # for host in alive_windows:
+            #     # cmd = ["sshpass", "-p", host["password"], "ssh", ... "rundll32.exe powrprof.dll,SetSuspendState 0,1,0"]
+            #     # subprocess.run(cmd, timeout=10, capture_output=True)
+            #     pass
+
+            # Suspend Windows hosts (hibernate)
             for host in alive_windows:
-                # cmd = ["sshpass", "-p", host["password"], "ssh", ... "rundll32.exe powrprof.dll,SetSuspendState 0,1,0"]
-                # subprocess.run(cmd, timeout=10, capture_output=True)
-                pass
+                if self._stop_event.is_set():
+                    break
+
+                cmd = [
+                    "sshpass",
+                    "-p", host["password"],
+                    "ssh",
+                    "-o", "StrictHostKeyChecking=no",
+                    "-o", "ConnectTimeout=10",
+                    f"{host['user']}@{host['ip']}",
+                    "shutdown", "/h", "/f", "/t", "0"
+                ]
+                subprocess.run(cmd, timeout=15, capture_output=False)
+                print("hibernate issued")
                 
             if self._stop_event.is_set():
                     break

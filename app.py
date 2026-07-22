@@ -5,7 +5,7 @@ import queue
 from dataclasses import replace
 
 import repository
-from models import PowerState, Inputs, HostState, HostsHealthStatusWrapper
+from models import PowerState, Inputs, HostState, HostsHealthStatusWrapper, PowerStateViewModel
 from helper_functions import load_config, print_dashboard
 from actionbox import ActionBoxReal
 import http_server
@@ -63,8 +63,12 @@ def main():
 
     #999 main cycle: react to changes in signals (WIP)
     current_inputs = Inputs()
-    current_power_state = PowerState()
-    # current_hosts_health_status = {host["name"]: HostState.UNKNOWN for host in INVENTORY["hosts"]}
+
+    # current_power_state_model = PowerState() # must be READ ONLY FOR EVERYONE AND PRVATE
+    # current_power_state_viewmodel = PowerStateViewModel(current_power_state_model) # BEHAVIOR ABSTRACTION
+
+    current_power_state_viewmodel = PowerStateViewModel(PowerState()) # liek this mb?
+
     current_hosts_health_status = HostsHealthStatusWrapper(
         {host["name"]: HostState.UNKNOWN for host in INVENTORY["hosts"]}
     )
@@ -80,7 +84,8 @@ def main():
         INVENTORY,
     )
 
-    http_server.start_dashboard_server(current_power_state, current_hosts_health_status)
+    # http_server.start_dashboard_server(current_power_state_model, current_hosts_health_status)
+    http_server.start_dashboard_server(current_power_state_viewmodel, current_hosts_health_status)
 
     # action_box.start_suspending_routine()   # should print and run for 5s
     # time.sleep(2)
@@ -91,7 +96,9 @@ def main():
             canary_reading = queue_canary.get_nowait()
             # print(f"Canary STATUS: {canary_reading}")
             current_inputs = replace(current_inputs, canary_healthy = canary_reading)
-            current_power_state = repository.react(current_power_state, current_inputs, action_box)
+            # current_power_state_model = repository.react(current_power_state_model, current_inputs, action_box)
+            updated_state = repository.react(current_power_state_viewmodel.get(), current_inputs, action_box)
+            current_power_state_viewmodel.update(updated_state)
         except queue.Empty:
             pass
 
@@ -99,20 +106,20 @@ def main():
             ac_switches_reading = queue_ac_switches.get_nowait()
             # print(f"Switches STATUS: {ac_switches_reading}")
             current_inputs = replace(current_inputs, switches_healthy = ac_switches_reading)
-            current_power_state = repository.react(current_power_state, current_inputs, action_box)
+            # current_power_state_model = repository.react(current_power_state_model, current_inputs, action_box)
+            updated_state = repository.react(current_power_state_viewmodel.get(), current_inputs, action_box)
+            current_power_state_viewmodel.update(updated_state)
         except queue.Empty:
             pass
 
         try:
             hosts_health_reading = queue_hosts_status.get_nowait()
-            # print(f"Hosts STATUS: {hosts_health_reading}")
-            # current_hosts_health_status = hosts_health_reading
-            current_hosts_health_status.update(hosts_health_reading)  # MUTEXED UPDATE BC SHARED SHIT
+            current_hosts_health_status.update(hosts_health_reading)  # MUTEXED UPDATE BC SHARED 
 
         except queue.Empty:
             pass
             
-        print_dashboard(current_power_state, current_hosts_health_status)
+        # print_dashboard(current_power_state_model, current_hosts_health_status)
 
         time.sleep(repository.GLOBAL_DELAY)
     # BLOCKING MAIN LOOP DONT PUT ANYTHING AFTER

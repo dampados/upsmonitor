@@ -1,10 +1,10 @@
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import threading
-from models import PowerState, HostsHealthStatusWrapper, HostState
+from models import HostsHealthStatusWrapper, HostState, PowerStateViewModel
 
 class DashboardHandler(BaseHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
-        self._power_state = kwargs.pop('power_state', None)
+        self._power_state_viewmodel = kwargs.pop('power_state_viewmodel', None)
         self._hosts_status = kwargs.pop('hosts_status', None)
         super().__init__(*args, **kwargs)
 
@@ -15,7 +15,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
             return
 
         status = self._hosts_status.get()
-        power = self._power_state
+        power = self._power_state_viewmodel.get()
 
         html = f"""<!DOCTYPE html>
 <html>
@@ -67,9 +67,9 @@ class ReusableHTTPServer(HTTPServer):
     allow_reuse_address = True
 
 
-def start_dashboard_server(power_state: PowerState, hosts_status: HostsHealthStatusWrapper, port: int = 80):
+def start_dashboard_server(power_state_viewmodel: PowerStateViewModel, hosts_status: HostsHealthStatusWrapper, port: int = 80):
     def handler(*args, **kwargs):
-        return DashboardHandler(*args, power_state=power_state, hosts_status=hosts_status, **kwargs)
+        return DashboardHandler(*args, power_state_viewmodel=power_state_viewmodel, hosts_status=hosts_status, **kwargs)
 
     server = ReusableHTTPServer(('0.0.0.0', port), handler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)

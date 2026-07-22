@@ -5,20 +5,6 @@ from typing import Optional
 from abc import ABC, abstractmethod
 import threading
 
-# === MUTEX WRAPPERS ===
-class HostsHealthStatusWrapper:
-    def __init__(self, initial_status: dict = None):
-        self._status = initial_status if initial_status is not None else {}
-        self._lock = threading.Lock()
-    
-    def update(self, new_status):
-        with self._lock:
-            self._status = new_status
-    
-    def get(self):
-        with self._lock:
-            return self._status.copy()
-
 # === ENUMS ===
 class PowerStateName(Enum):
     UNKNOWN = auto()
@@ -37,7 +23,6 @@ class Routine(Enum):
     SUSPEND = auto()
     RESTORE = auto()
 
-
 # === DATA CLASSES ===
 @dataclass
 class PowerState:
@@ -45,6 +30,38 @@ class PowerState:
     canary_latest_bool: Optional[bool] = None
     switches_latest_bool: Optional[bool] = None
     ticks_counter: int = 0
+
+# === MUTEX WRAPPERS ===
+# viewmodel for the PowerState !!!!!!! a.k.a. android viewmodel OR a.k.a. mutex wrapper 
+class PowerStateViewModel:
+    def __init__(self, initial: PowerState):
+        self._state = initial
+        self._lock = threading.Lock()
+    
+    def update(self, new_state: PowerState) -> None:
+        with self._lock:
+            self._state = new_state
+    
+    def get(self) -> PowerState:
+        with self._lock:
+            return self._state
+
+# we dont need dataclass bc our model is a dictionary! but still a viewmodel/mutex-wrapper
+class HostsHealthStatusWrapper:
+    def __init__(self, initial_status: dict = None):
+        self._status = initial_status if initial_status is not None else {}
+        self._lock = threading.Lock()
+    
+    def update(self, new_status):
+        with self._lock:
+            self._status = new_status
+    
+    def get(self):
+        with self._lock:
+            return self._status.copy()
+
+
+
 
 
 @dataclass
