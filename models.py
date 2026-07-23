@@ -29,7 +29,12 @@ class PowerState:
     status: PowerStateName = PowerStateName.UNKNOWN
     canary_latest_bool: Optional[bool] = None
     switches_latest_bool: Optional[bool] = None
-    ticks_counter: int = 0
+    # logical ticks counters!
+    ticks_counter: int = 0             # state change deboucing
+    cumulative_on_bbu_counter: int = 0      # how long weve been on batteries since last N hours recharge 
+    cumulative_healthy_counter: int = 0     # how long weve been healthy since last BAD state
+
+
 
 # === MUTEX WRAPPERS ===
 # viewmodel for the PowerState !!!!!!! a.k.a. android viewmodel OR a.k.a. mutex wrapper 

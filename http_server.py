@@ -3,6 +3,11 @@ import threading
 from models import HostsHealthStatusWrapper, HostState, PowerStateViewModel
 
 class DashboardHandler(BaseHTTPRequestHandler):
+    def log_request(self, code='-', size='-'):
+        if code == 200:
+            return
+        super().log_request(code, size)
+
     def __init__(self, *args, **kwargs):
         self._power_state_viewmodel = kwargs.pop('power_state_viewmodel', None)
         self._hosts_status = kwargs.pop('hosts_status', None)
@@ -43,6 +48,8 @@ class DashboardHandler(BaseHTTPRequestHandler):
     <div>Canary: {power.canary_latest_bool}</div>
     <div>Switches: {power.switches_latest_bool}</div>
     <div>Ticks: {power.ticks_counter}</div>
+    <div>BBU Cumulative: {power.cumulative_on_bbu_counter} ticks</div>
+    <div>Healthy Cumulative: {power.cumulative_healthy_counter} ticks</div>
     <table>
         <tr><th>Host</th><th>Status</th></tr>
 """

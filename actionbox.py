@@ -11,6 +11,8 @@ class ActionBoxReal(ActionBox):
             inventory: dict,
             ):
         self._thread = None                 # ref to a singular per instance thread
+        self._thread_suspending = None          # ref to a routine specific thread
+        self._thread_restoring = None           # ref to a routine specific thread
         self._thread_stop_event = threading.Event() # stop event
         self._hosts_status = hosts_status   # alive or dead statuses
         self._hosts_combined_ram = []       # obvious!
@@ -28,13 +30,7 @@ class ActionBoxReal(ActionBox):
                 "user": creds_for_host.get("user"),
                 "password": creds_for_host.get("password"),
             })
-    
-        # thread_cannary = threading.Thread(
-        #     target=None,
-        #     args=()
-        # )
-        # thread_cannary.daemon = True
-        # thread_cannary.start()
+
 
 # ----- INIT END ----- $
 
@@ -61,7 +57,9 @@ class ActionBoxReal(ActionBox):
 
             
             if not alive_linux and not alive_windows:
-                break
+                # NO! now we ONLY exit the routine via STOP EVENT!!!
+                # break # EXIT + THREAD DEATH
+                continue
             
             # Suspend Linux hosts
             for host in alive_linux:
@@ -78,21 +76,29 @@ class ActionBoxReal(ActionBox):
                     f"{host['user']}@{host['ip']}",
                     "systemctl", "suspend"
                 ]
-                subprocess.run(cmd, timeout=15, capture_output=False)
-                print("suspend issued")
-
-
-            # # Suspend Windows hosts
-            # for host in alive_windows:
-            #     # cmd = ["sshpass", "-p", host["password"], "ssh", ... "rundll32.exe powrprof.dll,SetSuspendState 0,1,0"]
-            #     # subprocess.run(cmd, timeout=10, capture_output=True)
-            #     pass
+                # subprocess.run(cmd, timeout=15, capture_output=False)
+                try:
+                    subprocess.run(cmd, timeout=15, capture_output=False)
+                    print(f"suspend issued for {host['name']}")
+                except Exception as e:
+                    print(f"suspend failed for {host['name']}: {e}")
+                # print("suspend issued")
+                print(f"suspend issued for {host['name']}")
 
             # Suspend Windows hosts (hibernate)
             for host in alive_windows:
                 if self._stop_event.is_set():
                     break
 
+                # cmd = [
+                #     "sshpass",
+                #     "-p", host["password"],
+                #     "ssh",
+                #     "-o", "StrictHostKeyChecking=no",
+                #     "-o", "ConnectTimeout=10",
+                #     f"{host['user']}@{host['ip']}",
+                #     "shutdown", "/h", "/f", "/t", "0"
+                # ]
                 cmd = [
                     "sshpass",
                     "-p", host["password"],
@@ -100,15 +106,23 @@ class ActionBoxReal(ActionBox):
                     "-o", "StrictHostKeyChecking=no",
                     "-o", "ConnectTimeout=10",
                     f"{host['user']}@{host['ip']}",
-                    "shutdown", "/h", "/f", "/t", "0"
+                    "shutdown", "/h", "/f"
                 ]
-                subprocess.run(cmd, timeout=15, capture_output=False)
-                print("hibernate issued")
+                # subprocess.run(cmd, timeout=15, capture_output=False)
+                try:
+                    subprocess.run(cmd, timeout=15, capture_output=False)
+                except subprocess.TimeoutExpired:
+                    print(f"hibernate issued for {host['name']} (SSH timed out, host likely hibernated)")
+                except Exception as e:
+                    print(f"hibernate failed for {host['name']}: {e}")
+                # print("hibernate issued")
+                print(f"hibernate issued for {host['name']}")
                 
             if self._stop_event.is_set():
                     break
 
             time.sleep(2)
+
 
     def _restoring_routine(self) -> None:
         print("restoring started")
@@ -124,7 +138,9 @@ class ActionBoxReal(ActionBox):
                     dead_hosts.append(host)
 
             if not dead_hosts:
-                break # EXIT + THREAD DEATH
+                # NO! now we ONLY exit the routine via STOP EVENT!!!
+                # break # EXIT + THREAD DEATH
+                continue
 
             for host in dead_hosts:
                 if self._stop_event.is_set():
@@ -139,13 +155,14 @@ class ActionBoxReal(ActionBox):
                         mac
                     ]
                     subprocess.run(cmd, timeout=5, capture_output=True)
-                    print("restoring issued")
+                    # print("restoring issued")
+                    print(f"restoring issued for {host['name']} ({mac})")
 
                 time.sleep(1)
 
             if self._stop_event.is_set():
                 break
-            time.sleep(5)
+            time.sleep(10)
 
     def _suspending_routine_mock(self, stop_event) -> None:
         print("🟡 SUSPEND: started")
@@ -167,25 +184,34 @@ class ActionBoxReal(ActionBox):
             time.sleep(1)
         print("🟢 RESTORE: finished")
 
-    def _start_routine(self, target):
-        if self._thread and self._thread.is_alive():
+    def _stop_all_threads_experimental(self):
+        if self._thread_restoring and self._thread_restoring.is_alive():
             self._stop_event.set()
-            self._thread.join() #DEBUG
-        
-        self._stop_event = threading.Event()
-        # self._thread = threading.Thread(target=target, args=(self._stop_event,))
-        # self._thread = threading.Thread(target=target, args=())
-        self._thread = threading.Thread(target=target)
-        self._thread.daemon = True
-        self._thread.start()
+            self._thread_restoring.join() # TODO DEBUG BLOCKING
 
+        if self._thread_suspending and self._thread_suspending.is_alive():
+            self._stop_event.set()
+            self._thread_suspending.join() # TODO DEBUG BLOCKING
 
 
 # ----- public  ----- $
 
     def start_suspending_routine(self):
-        self._start_routine(self._suspending_routine)
+        if self._thread_suspending and self._thread_suspending.is_alive():
+            return
+        self._stop_all_threads_experimental()
+        self._stop_event = threading.Event()
+        
+        self._thread_suspending = threading.Thread(target=self._suspending_routine)
+        self._thread_suspending.daemon = True
+        self._thread_suspending.start()
 
     def start_restoring_routine(self):
-        self._start_routine(self._restoring_routine)
-
+        if self._thread_restoring and self._thread_restoring.is_alive():
+            return
+        self._stop_all_threads_experimental()
+        self._stop_event = threading.Event()
+        
+        self._thread_restoring = threading.Thread(target=self._restoring_routine)
+        self._thread_restoring.daemon = True
+        self._thread_restoring.start()
