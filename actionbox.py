@@ -37,7 +37,10 @@ class ActionBoxReal(ActionBox):
 # ----- private  ----- $
 
     def _suspending_routine(self) -> None:
+
         print("suspend started")
+        self._poweroff_attempts = {host["name"]: -1 for host in self._hosts_combined_ram}
+
         while True:
 
             if self._stop_event.is_set():
@@ -61,11 +64,23 @@ class ActionBoxReal(ActionBox):
                 # break # EXIT + THREAD DEATH
                 continue
             
-            # Suspend Linux hosts
-            for host in alive_linux:
+            # Poweroff Linux hosts
+            # First, reset counters for hosts that are no longer alive
+            alive_names = {host['name'] for host in alive_linux}
+            for hostname in list(self._poweroff_attempts.keys()):
+                if hostname not in alive_names:
+                    self._poweroff_attempts[hostname] = -1  # Reset for when it comes back
 
+            for host in alive_linux:
                 if self._stop_event.is_set():
                     break
+
+                hostname = host['name']
+
+                # Throttle: increment, only attempt every 60th time
+                self._poweroff_attempts[hostname] += 1
+                if self._poweroff_attempts[hostname] % 60 != 0:
+                    continue
 
                 cmd = [
                     "sshpass",
@@ -73,32 +88,25 @@ class ActionBoxReal(ActionBox):
                     "ssh",
                     "-o", "StrictHostKeyChecking=no",
                     "-o", "ConnectTimeout=10",
+                    "-o", "ServerAliveInterval=2",
+                    "-o", "ServerAliveCountMax=2",
                     f"{host['user']}@{host['ip']}",
-                    "systemctl", "suspend"
+                    "poweroff"
                 ]
-                # subprocess.run(cmd, timeout=15, capture_output=False)
+                
                 try:
                     subprocess.run(cmd, timeout=15, capture_output=False)
-                    print(f"suspend issued for {host['name']}")
+                    print(f"poweroff issued for {host['name']}")
+                except subprocess.TimeoutExpired:
+                    print(f"poweroff issued for {host['name']} (connection dropped)")
                 except Exception as e:
-                    print(f"suspend failed for {host['name']}: {e}")
-                # print("suspend issued")
-                print(f"suspend issued for {host['name']}")
+                    print(f"poweroff failed for {host['name']}: {e}")
 
             # Suspend Windows hosts (hibernate)
             for host in alive_windows:
                 if self._stop_event.is_set():
                     break
 
-                # cmd = [
-                #     "sshpass",
-                #     "-p", host["password"],
-                #     "ssh",
-                #     "-o", "StrictHostKeyChecking=no",
-                #     "-o", "ConnectTimeout=10",
-                #     f"{host['user']}@{host['ip']}",
-                #     "shutdown", "/h", "/f", "/t", "0"
-                # ]
                 cmd = [
                     "sshpass",
                     "-p", host["password"],
