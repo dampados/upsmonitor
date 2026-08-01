@@ -1,6 +1,8 @@
 #custom!
 creds.json
 inventory.json
+app/venv/
+app/*.json
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

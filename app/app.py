@@ -93,8 +93,8 @@ def main():
     # time.sleep(2)
     # action_box.start_restoring_routine() 
 
-    thread_keyboard = threading.Thread(target=repository.keyboard_listener, daemon=True)
-    thread_keyboard.start()
+    # thread_keyboard = threading.Thread(target=repository.keyboard_listener, daemon=True)
+    # thread_keyboard.start()
 
     while True:
         try:
@@ -121,6 +121,8 @@ def main():
         try:
             hosts_health_reading = queue_hosts_status.get_nowait()
             current_hosts_health_status.update(hosts_health_reading)  # MUTEXED UPDATE BC SHARED 
+            print(f"📊 STORED: {current_hosts_health_status.get()}")
+
 
         except queue.Empty:
             pass

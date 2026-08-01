@@ -13,19 +13,10 @@ _CANARY_ALIVE = '"17"=active'
 
 _PING_TIMEOUT = 0.6
 _DELAY_HEALTH_PING = 7
-# _SWITCH_IPS = [
-#     "172.16.38.244",
-# ]
-# _SWITCH_IPS_REAL = [
-#     "172.16.40.101",
-#     "172.16.40.102",
-#     "172.16.40.103",
-#     "172.16.40.104",
-#     "172.16.40.105",
-# ]
 
 # DEBUG!!!! TBD
 _mock_canary = True
+_mock_canary_mutable = [True]
 
 # DEBUG!!!! TBD
 def keyboard_listener():
@@ -41,6 +32,9 @@ def keyboard_listener():
 
 # DEBUG!!!! TBD
 def _read_signal_canary():
+    return _mock_canary_mutable[0]
+
+def _read_signal_canary_old_debug():
     return _mock_canary
 
 def _read_signal_canary_real():
@@ -172,6 +166,8 @@ def poller_hosts_health(injected_queue: queue.Queue, hosts_map: dict[str, str]) 
                 health_status[name] = HostState.ALIVE
             else: 
                 health_status[name] = HostState.DEAD
+
+        print(f"🔍 POLLER: health_status = {health_status}")  # TODO TBD 
         
         try:
             injected_queue.put_nowait(health_status)

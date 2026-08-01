@@ -1,6 +1,8 @@
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import threading
+import json
 from models import HostsHealthStatusWrapper, HostState, PowerStateViewModel
+from repository import _mock_canary_mutable
 
 class DashboardHandler(BaseHTTPRequestHandler):
     def log_request(self, code='-', size='-'):
@@ -69,12 +71,46 @@ class DashboardHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(html.encode())
 
+    def do_POST(self):
+        if self.path != '/canary':
+            self.send_response(404)
+            self.end_headers()
+            return
+
+        content_length = int(self.headers.get('Content-Length', 0))
+        body = self.rfile.read(content_length).decode('utf-8')
+
+        try:
+            data = json.loads(body)
+            alive = data.get('alive')
+            if alive is None:
+                self.send_response(400)
+                self.end_headers()
+                self.wfile.write(b'{"error": "Missing alive field"}')
+                return
+
+            _mock_canary_mutable[0] = alive
+            response = json.dumps({"status": "ok", "canary": alive})
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(response.encode())
+
+        except json.JSONDecodeError:
+            self.send_response(400)
+            self.end_headers()
+            self.wfile.write(b'{"error": "Invalid JSON"}')
+        except Exception as e:
+            self.send_response(500)
+            self.end_headers()
+            self.wfile.write(f'{{"error": "{str(e)}"}}'.encode())
+
 
 class ReusableHTTPServer(HTTPServer):
     allow_reuse_address = True
 
 
-def start_dashboard_server(power_state_viewmodel: PowerStateViewModel, hosts_status: HostsHealthStatusWrapper, port: int = 80):
+def start_dashboard_server(power_state_viewmodel: PowerStateViewModel, hosts_status: HostsHealthStatusWrapper, port: int = 8800):
     def handler(*args, **kwargs):
         return DashboardHandler(*args, power_state_viewmodel=power_state_viewmodel, hosts_status=hosts_status, **kwargs)
 
