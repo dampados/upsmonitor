@@ -14,30 +14,7 @@ _CANARY_ALIVE = '"17"=active'
 _PING_TIMEOUT = 0.6
 _DELAY_HEALTH_PING = 7
 
-# DEBUG!!!! TBD
-_mock_canary = True
-_mock_canary_mutable = [True]
-
-# DEBUG!!!! TBD
-def keyboard_listener():
-    global _mock_canary
-    while True:
-        key = input().strip()  # waits for Enter over SSH
-        if key == 'j':
-            _mock_canary = False
-            print("Canary: DEAD")
-        elif key == 'k':
-            _mock_canary = True
-            print("Canary: ALIVE")
-
-# DEBUG!!!! TBD
 def _read_signal_canary():
-    return _mock_canary_mutable[0]
-
-def _read_signal_canary_old_debug():
-    return _mock_canary
-
-def _read_signal_canary_real():
 
     try:
         result = subprocess.run(
@@ -188,7 +165,7 @@ STATE_MAPPING = {
 }
 
 # router 
-def react(old_state: PowerState, i: Inputs, a: ActionBox) -> PowerState:
+def react_deprecated(old_state: PowerState, i: Inputs, a: ActionBox) -> PowerState:
     if i.canary_healthy is None and i.switches_healthy is None:
 
         STATE_CHANGE_DEBOUNCING_PERIOD = 60 # each tick is 0.1 delay
@@ -246,50 +223,23 @@ def react_experimantal(old_state: PowerState, i: Inputs, a: ActionBox) -> PowerS
             current_readings_key = (old_state.canary_latest_bool, old_state.switches_latest_bool) #fetch the key
             power_state_name = STATE_MAPPING.get(current_readings_key) #challege dict by key
 
-
             # start the assigned in STATE MAPPING routine here!!!
             if power_state_name != old_state.status:
-                # if power_state_name != PowerStateName.BAD_ON_BBU:
-                #     a.start_restoring_routine()
-                # else:
-                #     a.start_suspending_routine()
-
-
-                # return replace(
-                #     old_state,
-                #     ticks_counter = 0,
-                #     status = power_state_name
-                # )
                 formed_new_state = replace(
                     old_state,
                     ticks_counter = 0,
                     status = power_state_name
                 )
             else: 
-                # return replace(old_state, ticks_counter = 0)
                 formed_new_state = replace(old_state, ticks_counter = 0)
 
         else: # keep ticking
-            # return replace(
-            #     old_state,
-            #     ticks_counter = incremented,
-            # )
             formed_new_state = replace(
                 old_state,
                 ticks_counter = incremented,
             )
 
     else:
-        # return replace(
-        #     old_state,
-        #     ticks_counter = 0,
-        #     canary_latest_bool = ( i.canary_healthy 
-        #         if i.canary_healthy is not None
-        #         else old_state.canary_latest_bool ),
-        #     switches_latest_bool = ( i.switches_healthy
-        #         if i.switches_healthy is not None
-        #         else old_state.switches_latest_bool),
-        # )
         formed_new_state = replace(
             old_state,
             ticks_counter = 0,
@@ -320,12 +270,9 @@ def _metareact(old_state: PowerState, new_state_wip: PowerState, a: ActionBox) -
     Reset both counters after 5 hours (180000 ticks) of healthy runtime.
     """
 
-    MAX_BEFORE_SUSPEND_REAL = 3000 # ticks
-    NEEDED_HEALTHY_BEFORE_RESET_REAL = 180000 # ticks (about 5 hours, drifts a lot, be ready)
+    MAX_BEFORE_SUSPEND = 3000 # ticks
+    NEEDED_HEALTHY_BEFORE_RESET = 180000 # ticks (about 5 hours, drifts a lot, be ready)
     
-    MAX_BEFORE_SUSPEND = 150
-    NEEDED_HEALTHY_BEFORE_RESET = 200
-
     # healthy optimism
     if old_state.status != PowerStateName.BAD_ON_BBU and new_state_wip.status != PowerStateName.BAD_ON_BBU:
         # KEEP IT AT MAX AND WAIT!
@@ -336,7 +283,7 @@ def _metareact(old_state: PowerState, new_state_wip: PowerState, a: ActionBox) -
     if new_state_wip.cumulative_healthy_counter >= NEEDED_HEALTHY_BEFORE_RESET:
         #finally batteries are charged!
         new_state_wip.cumulative_on_bbu_counter = 0
-        # keep it clean for later, cooking oven and shit analogy . . .
+        # keep it clean for later, cooking oven and shit metaphor . . .
         # new_state_wip.cumulative_healthy_counter = 0  
 
     # bad pessimism
@@ -348,9 +295,6 @@ def _metareact(old_state: PowerState, new_state_wip: PowerState, a: ActionBox) -
         )
 
     # sideeffects starting logic:
-    # if new_state_wip.status != PowerStateName.BAD_ON_BBU:
-    #     if old_state.status == PowerStateName.BAD_ON_BBU:
-    #         a.start_restoring_routine_experimental()
     if new_state_wip.status != PowerStateName.BAD_ON_BBU:
         a.start_restoring_routine()
     else:

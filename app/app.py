@@ -89,12 +89,6 @@ def main():
     # http_server.start_dashboard_server(current_power_state_model, current_hosts_health_status)
     http_server.start_dashboard_server(current_power_state_viewmodel, current_hosts_health_status)
 
-    # action_box.start_suspending_routine()   # should print and run for 5s
-    # time.sleep(2)
-    # action_box.start_restoring_routine() 
-
-    # thread_keyboard = threading.Thread(target=repository.keyboard_listener, daemon=True)
-    # thread_keyboard.start()
 
     while True:
         try:
@@ -126,7 +120,8 @@ def main():
 
         except queue.Empty:
             pass
-            
+
+        # uncomment to see the thing in CLI
         # print_dashboard(current_power_state_model, current_hosts_health_status)
  
 
