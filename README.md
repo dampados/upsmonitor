@@ -6,6 +6,10 @@
 
 ## How to use
 
+### Preparation
+- Make sure linux hosts are able to wake up from S5 state by PCI-E: restoring uses wakeonlan + mac addresses
+- Make sure windows hosts are able to S4 hibernate. 
+
 ### Hardware
 - Any Linux SBC with GPIO support (RPi 2/3/4/5, Orange Pi, etc.)
 - Python + `gpiod` GPIO
@@ -21,3 +25,5 @@
 - chmod +x *.sh
 - run ./install.sh to deploy and create systemd service
 - run ./purge.sh to uninstall everything from the target node.
+
+Uses [`icmplib`](https://pypi.org/project/icmplib/) — thanks.
