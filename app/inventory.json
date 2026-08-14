@@ -1,0 +1,27 @@
+{
+  "ac_canaries": ["192.168.1.1", 
+                  "192.168.2.10"],
+  "hosts": [
+        {
+      "name": "1c-serv",
+      "os_type": "windows",
+      "ip": "192.168.1.11",
+      "cred_set": "creds_windows_ru",
+      "macs": ["d8:5e:d3:0c:d5:62"]
+    },
+    {
+      "name": "dl380g8",
+      "os_type": "linux",
+      "ip": "192.168.1.12",
+      "cred_set": "creds_proxmox",
+      "macs": ["ac:16:2d:8a:1b:40", "ac:16:2d:8a:1b:41", "ac:16:2d:8a:1b:42", "ac:16:2d:8a:1b:43"]
+    },
+    {
+      "name": "r720",
+      "os_type": "linux",
+      "ip": "192.168.1.13",
+      "cred_set": "creds_proxmox",
+      "macs": ["b8:ca:3a:5c:3e:8c", "b8:ca:3a:5c:3e:8d", "b8:ca:3a:5c:3e:8e", "b8:ca:3a:5c:3e:8f"]
+    }
+  ]
+}

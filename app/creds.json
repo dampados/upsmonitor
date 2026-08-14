@@ -1,0 +1,12 @@
+{
+  "credentials": {
+    "creds_proxmox": {
+      "user": "root",
+      "password": "password"
+    },
+    "creds_windows_en": {
+      "user": "Administrator",
+      "password": "password"
+    }
+  }
+}
